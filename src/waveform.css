@@ -344,13 +344,18 @@
 
 .expanded-listening-shell {
   width: 100%;
+  height: 100%;
   min-width: 0;
+  align-self: stretch;
   display: grid;
-  grid-template-rows: 22px 1fr;
+  grid-template-rows: 22px 44px;
   gap: 9px;
 }
 
 .expanded-listening .expanded-live-text {
+  position: relative;
+  z-index: 3;
+  display: block;
   min-width: 0;
   overflow: hidden;
   color: color-mix(in srgb, var(--pill-text) 92%, transparent);
@@ -365,6 +370,7 @@
 }
 
 .expanded-listening-row {
+  height: 44px;
   min-width: 0;
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr) 78px;

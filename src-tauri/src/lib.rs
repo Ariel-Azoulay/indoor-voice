@@ -258,6 +258,18 @@ fn open_accessibility_settings() -> Result<(), String> {
     Ok(())
 }
 
+// macOS can temporarily report a work area that reaches behind the Dock while
+// it is animating, changing displays, or revealing a magnified bottom Dock.
+// Keep a stable reveal lane so a bottom-anchored pill always grows upward and
+// never lands beneath system chrome. The requested user margin is applied on
+// top of this edge by `position_pill_window`.
+const BOTTOM_DOCK_SAFE_INSET: f64 = 96.0;
+
+fn dock_safe_bottom_edge(full_bottom: i32, work_bottom: i32, scale_factor: f64) -> i32 {
+    let reveal_lane = (BOTTOM_DOCK_SAFE_INSET * scale_factor).round() as i32;
+    work_bottom.min(full_bottom - reveal_lane)
+}
+
 fn position_pill_window(
     pill: &tauri::WebviewWindow,
     position: &str,
@@ -282,23 +294,29 @@ fn position_pill_window(
         .map_err(|_| "The current display could not be read.".to_string())?
         .or_else(|| pill.primary_monitor().ok().flatten())
         .ok_or_else(|| "No display is available for the pill.".to_string())?;
-    // The platform work area excludes persistent system chrome such as the
-    // macOS menu bar and Dock. Anchoring the transparent canvas to this rect
-    // keeps a bottom pill above the Dock and a top pill below the menu bar.
+    // The work area normally excludes persistent system chrome. The full
+    // monitor bounds let us additionally protect the Dock reveal/magnification
+    // lane, which can be absent from transient macOS work-area reports.
     let work_area = monitor.work_area();
+    let full_position = monitor.position();
+    let full_size = monitor.size();
+    let scale_factor = monitor.scale_factor();
     let size = pill
         .outer_size()
         .map_err(|_| "The pill size could not be read.".to_string())?;
     // Match the overlay's internal padding so the visible pill, rather than
     // its transparent canvas, lands on the requested screen margin.
-    let canvas_inset = (8.0 * monitor.scale_factor()).round() as i32;
-    let margin = (margin.clamp(4.0, 80.0) * monitor.scale_factor()).round() as i32 - canvas_inset;
+    let canvas_inset = (8.0 * scale_factor).round() as i32;
+    let margin = (margin.clamp(4.0, 80.0) * scale_factor).round() as i32 - canvas_inset;
     let left = work_area.position.x + margin;
     let center_x = work_area.position.x + (work_area.size.width as i32 - size.width as i32) / 2;
     let right = work_area.position.x + work_area.size.width as i32 - size.width as i32 - margin;
     let top = work_area.position.y + margin;
     let center_y = work_area.position.y + (work_area.size.height as i32 - size.height as i32) / 2;
-    let bottom = work_area.position.y + work_area.size.height as i32 - size.height as i32 - margin;
+    let full_bottom = full_position.y + full_size.height as i32;
+    let work_bottom = work_area.position.y + work_area.size.height as i32;
+    let safe_bottom = dock_safe_bottom_edge(full_bottom, work_bottom, scale_factor);
+    let bottom = safe_bottom - size.height as i32 - margin;
     let (x, y) = match position {
         "top-left" => (left, top),
         "top-center" => (center_x, top),
@@ -1540,6 +1558,13 @@ mod tests {
         let (endpoint, public_key) = bundled_updater_configuration();
         assert!(!endpoint, "do not ship an unreviewed update endpoint");
         assert!(!public_key, "do not ship a placeholder updater public key");
+    }
+
+    #[test]
+    fn bottom_pill_keeps_a_stable_dock_reveal_lane() {
+        assert_eq!(dock_safe_bottom_edge(1080, 1080, 1.0), 984);
+        assert_eq!(dock_safe_bottom_edge(1080, 930, 1.0), 930);
+        assert_eq!(dock_safe_bottom_edge(2160, 2160, 2.0), 1968);
     }
 
     #[test]

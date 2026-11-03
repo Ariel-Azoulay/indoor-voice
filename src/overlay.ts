@@ -88,7 +88,10 @@ function appIdentityMarkup(): string {
 
 function expandedListeningMarkup(message: string | undefined, mode: PillCustomization["contentMode"]): string {
   const visual = mode === "levels" ? bars() : brandWaveformMarkup();
-  const liveText = capturePaused ? "Paused" : message?.trim() || "Listening…";
+  // Keep the approved two-row composition visible before Whisper has emitted
+  // its first partial. The placeholder is replaced in place as live text
+  // arrives, so the row never collapses or appears to be missing.
+  const liveText = capturePaused ? "Paused" : message?.trim() || "This is live text as you speak…";
   const pauseLabel = capturePaused ? "Resume listening" : "Pause listening";
   const pauseIcon = capturePaused
     ? `<path d="M9 7.3v9.4l7-4.7z" />`
