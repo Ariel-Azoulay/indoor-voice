@@ -5,6 +5,10 @@ const WAVE_WIDTH = 192;
 // 3:1 viewBox was letterboxed inside a much wider element, which made the
 // waveform look small while leaving a large amount of invisible side space.
 const WAVE_HEIGHT = 40;
+// Keep a small amount of SVG canvas beyond the first and last waveform
+// points. The lines still span the full visual width, but their rounded caps
+// are no longer clipped by the viewBox at either edge.
+const WAVE_VIEWBOX_INSET = 2;
 const MAX_WAVE_LINES = 13;
 const WAVE_SEGMENTS = 48;
 const WAVE_PHASE_OFFSETS = [-0.85, 0.42, 1.18, -1.32, 0.7, 0, -0.55, 1.5, -1, 0.95, -0.2, 1.28, -1.55];
@@ -243,7 +247,7 @@ export function brandWaveformMarkup(): string {
   const gradientId = `indoor-voice-wave-${waveformInstance += 1}`;
   const [defaultFirstLine, defaultLastLine] = activeLineRange(DEFAULT_WAVEFORM_EFFECT);
   return `<span class="brand-waveform" aria-hidden="true">
-    <svg viewBox="0 0 ${WAVE_WIDTH} ${WAVE_HEIGHT}" focusable="false">
+    <svg viewBox="-${WAVE_VIEWBOX_INSET} 0 ${WAVE_WIDTH + WAVE_VIEWBOX_INSET * 2} ${WAVE_HEIGHT}" preserveAspectRatio="none" focusable="false">
       <defs>
         <linearGradient class="brand-waveform-gradient" id="${gradientId}" x1="0" y1="20" x2="192" y2="20" gradientUnits="userSpaceOnUse">
           <stop offset="0" stop-color="var(--wave-color-start, #00dff3)"/>

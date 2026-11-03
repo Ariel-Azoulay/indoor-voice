@@ -405,9 +405,9 @@
 }
 
 .expanded-listening-visual .brand-waveform {
-  --brand-wave-width: 222px;
+  --brand-wave-width: 100%;
   --brand-wave-height: 36px;
-  width: min(222px, 100%);
+  width: 100%;
 }
 
 .expanded-listening-visual .bars,

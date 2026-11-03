@@ -252,7 +252,9 @@ void listen<PillCustomization>("pill-customization", (event) => {
   customization = normalizePillCustomization(event.payload);
   root.dataset.position = customization.position;
   applyPillCustomization(pill, customization, currentState);
-  pill.style.transformOrigin = transformOriginFor(customization.position);
+  const transformOrigin = transformOriginFor(customization.position);
+  pill.style.transformOrigin = transformOrigin;
+  cluster.style.transformOrigin = transformOrigin;
   render(currentState, currentMessage, false);
 });
 void listen<PillAppContext>("pill-app-context", (event) => {
@@ -282,4 +284,5 @@ applyPillCustomization(pill, customization, currentState);
 applyPillCustomization(cluster, customization, currentState);
 applyWaveformLevel(pill, 0);
 pill.style.transformOrigin = transformOriginFor(customization.position);
+cluster.style.transformOrigin = transformOriginFor(customization.position);
 render("idle", undefined, false);

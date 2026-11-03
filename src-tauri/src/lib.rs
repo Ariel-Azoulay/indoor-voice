@@ -282,6 +282,9 @@ fn position_pill_window(
         .map_err(|_| "The current display could not be read.".to_string())?
         .or_else(|| pill.primary_monitor().ok().flatten())
         .ok_or_else(|| "No display is available for the pill.".to_string())?;
+    // The platform work area excludes persistent system chrome such as the
+    // macOS menu bar and Dock. Anchoring the transparent canvas to this rect
+    // keeps a bottom pill above the Dock and a top pill below the menu bar.
     let work_area = monitor.work_area();
     let size = pill
         .outer_size()
