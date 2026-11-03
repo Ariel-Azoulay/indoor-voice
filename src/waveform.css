@@ -405,9 +405,19 @@
 }
 
 .expanded-listening-visual .brand-waveform {
-  --brand-wave-width: 100%;
+  /* The outer grid owns the responsive width. Keep the animation's intrinsic
+   * width numeric so percentage resolution cannot collapse against a
+   * shrink-to-fit flex item inside the installed WebView. */
+  --brand-wave-width: 252px;
   --brand-wave-height: 36px;
   width: 100%;
+  flex: 1 1 auto;
+}
+
+.expanded-listening-visual .brand-waveform svg {
+  left: 0;
+  width: 100%;
+  transform: translateY(-50%);
 }
 
 .expanded-listening-visual .bars,
