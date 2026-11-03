@@ -810,8 +810,8 @@ async function updateLiveTranscript(run: number): Promise<void> {
 function startLiveTranscription(): void {
   stopLiveTranscription();
   if (!isDesktopRuntime) return;
-  if (localStorage.getItem("indoor-voice:live-preview") === "off") return;
   const pillState = activeCaptureMode === "toggle" ? "handsfree" : "listening";
+  if (localStorage.getItem("indoor-voice:live-preview") === "off" && !usesExpandedListening(pillState)) return;
   if (!usesExpandedListening(pillState) && stateCustomization(pillCustomization, pillState).contentMode !== "transcript") return;
   setPillState(pillState, "Speak…");
   const run = liveTranscriptRun;
