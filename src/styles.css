@@ -1326,3 +1326,42 @@ details.appearance-advanced:not([open]) > .customization-grid { display: none; }
   .section-title, .personalization-section > .section-title { align-items: stretch; flex-direction: column; gap: 12px; }
   .section-actions, .inline-settings { flex-wrap: wrap; }
 }
+
+/* App-specific formatting profiles */
+.profile-quick-starts { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; margin: -1px 0 10px; }
+.profile-quick-starts button { min-height: 64px; padding: 10px 12px; display: grid; grid-template-columns: 32px 1fr; grid-template-rows: auto auto; column-gap: 10px; align-items: center; border: 1px solid var(--iv-line); border-radius: 12px; color: var(--iv-ink); background: var(--iv-surface); text-align: start; cursor: pointer; transition: transform 100ms ease-out, background 140ms ease; }
+.profile-quick-starts button:active { transform: scale(.975); }
+.profile-quick-starts button:hover { background: var(--iv-surface-raised); }
+.profile-quick-starts button > span { grid-row: 1/3; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 9px; background: color-mix(in srgb,var(--iv-muted) 12%,transparent); font-size: 13px; font-weight: 750; }
+.profile-quick-starts strong { align-self: end; font-size: 12px; line-height: 16px; }
+.profile-quick-starts small { align-self: start; color: var(--iv-muted); font-size: 10px; line-height: 13px; }
+.app-profile-dialog { width: min(650px,calc(100% - 28px)); }
+.app-profile-dialog form { gap: 15px; }
+.app-profile-dialog label > small { color: var(--iv-muted); font-size: 10px; font-weight: 450; line-height: 14px; }
+.app-profile-dialog select { min-height: 36px; padding: 8px 9px; border: 1px solid var(--iv-line); border-radius: 8px; color: var(--iv-ink); background: var(--iv-surface-raised); }
+.format-preset-fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+.format-preset-fieldset legend { margin-bottom: 7px; font-size: 10px; font-weight: 700; }
+.format-preset-picker { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 4px; padding: 4px; border-radius: 12px; background: color-mix(in srgb,var(--iv-muted) 12%,transparent); }
+.format-preset-picker button { min-width: 0; min-height: 68px; padding: 8px 5px; display: grid; place-items: center; gap: 2px; border: 1px solid transparent; border-radius: 9px; color: var(--iv-muted); background: transparent; cursor: pointer; transition: transform 100ms ease-out, color 140ms ease, background 140ms ease; }
+.format-preset-picker button:active { transform: scale(.96); }
+.format-preset-picker button.active { color: var(--iv-ink); border-color: var(--iv-line); background: var(--iv-surface-raised); box-shadow: 0 1px 4px rgb(0 0 0 / .08); }
+.format-preset-picker button > span { min-height: 20px; font-size: 15px; line-height: 20px; }
+.format-preset-picker strong { font-size: 11px; line-height: 14px; }
+.format-preset-picker small { overflow: hidden; max-width: 100%; color: inherit; font-size: 9px; line-height: 12px; text-overflow: ellipsis; white-space: nowrap; opacity: .72; }
+.email-preset-fields { display: grid; gap: 10px; padding: 13px; border: 1px solid var(--iv-line); border-radius: 12px; background: color-mix(in srgb,var(--iv-muted) 7%,transparent); }
+.email-preset-fields[hidden] { display: none; }
+.email-preset-fields > div:first-child { display: grid; gap: 2px; }
+.email-preset-fields > div:first-child strong { font-size: 11px; }
+.email-preset-fields > div:first-child small { color: var(--iv-muted); font-size: 10px; line-height: 14px; }
+.profile-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.email-preset-fields output { min-height: 96px; padding: 11px 12px; display: block; border-radius: 9px; color: var(--iv-ink); background: var(--iv-surface-raised); font-size: 11px; line-height: 1.55; white-space: pre-wrap; unicode-bidi: plaintext; }
+.profile-advanced { border-top: 1px solid var(--iv-line); padding-top: 11px; }
+.profile-advanced summary { color: var(--iv-muted); font-size: 10px; font-weight: 650; cursor: pointer; }
+.profile-advanced[open] summary { margin-bottom: 10px; }
+@media (max-width: 700px) {
+  .profile-quick-starts, .format-preset-picker { grid-template-columns: 1fr 1fr; }
+  .profile-form-grid { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .profile-quick-starts button, .format-preset-picker button { transition: none; }
+}

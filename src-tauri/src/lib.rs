@@ -39,6 +39,7 @@ struct ForegroundAppIdentity {
     name: Option<String>,
     bundle_identifier: Option<String>,
     icon_data_url: Option<String>,
+    context_identifiers: Vec<String>,
 }
 
 const TRAY_OPEN: &str = "tray-open";
@@ -78,6 +79,10 @@ fn focused_application() -> ForegroundAppIdentity {
         use objc2_app_kit::{NSBitmapImageFileType, NSBitmapImageRep, NSWorkspace};
         use objc2_foundation::NSDictionary;
         let application = NSWorkspace::sharedWorkspace().frontmostApplication();
+        let context_identifiers = application
+            .as_ref()
+            .map(|application| focused_window_context_identifiers(application.processIdentifier()))
+            .unwrap_or_default();
         let icon_data_url = application
             .as_ref()
             .and_then(|application| application.icon())
@@ -103,6 +108,7 @@ fn focused_application() -> ForegroundAppIdentity {
                 .and_then(|application| application.bundleIdentifier())
                 .map(|identifier| identifier.to_string()),
             icon_data_url,
+            context_identifiers,
         };
     }
     #[cfg(not(target_os = "macos"))]
@@ -110,7 +116,116 @@ fn focused_application() -> ForegroundAppIdentity {
         name: None,
         bundle_identifier: None,
         icon_data_url: None,
+        context_identifiers: Vec::new(),
     }
+}
+
+#[cfg(target_os = "macos")]
+fn focused_window_context_identifiers(process_id: i32) -> Vec<String> {
+    use std::{ffi::c_void, os::raw::c_char, ptr};
+
+    type CFTypeRef = *const c_void;
+    type CFStringRef = *const c_void;
+    type AXUIElementRef = *const c_void;
+    const CF_STRING_ENCODING_UTF8: u32 = 0x0800_0100;
+
+    #[link(name = "ApplicationServices", kind = "framework")]
+    unsafe extern "C" {
+        fn AXUIElementCreateApplication(pid: i32) -> AXUIElementRef;
+        fn AXUIElementCopyAttributeValue(
+            element: AXUIElementRef,
+            attribute: CFStringRef,
+            value: *mut CFTypeRef,
+        ) -> i32;
+        fn CFStringCreateWithCString(
+            allocator: CFTypeRef,
+            value: *const c_char,
+            encoding: u32,
+        ) -> CFStringRef;
+        fn CFStringGetCString(
+            value: CFStringRef,
+            buffer: *mut c_char,
+            buffer_size: isize,
+            encoding: u32,
+        ) -> u8;
+        fn CFRelease(value: CFTypeRef);
+    }
+
+    let title = unsafe {
+        let make_attribute = |name: &'static [u8]| {
+            CFStringCreateWithCString(
+                ptr::null(),
+                name.as_ptr().cast::<c_char>(),
+                CF_STRING_ENCODING_UTF8,
+            )
+        };
+        let focused_window_attribute = make_attribute(b"AXFocusedWindow\0");
+        let title_attribute = make_attribute(b"AXTitle\0");
+        let application = AXUIElementCreateApplication(process_id);
+        if application.is_null() || focused_window_attribute.is_null() || title_attribute.is_null()
+        {
+            if !application.is_null() {
+                CFRelease(application);
+            }
+            if !focused_window_attribute.is_null() {
+                CFRelease(focused_window_attribute);
+            }
+            if !title_attribute.is_null() {
+                CFRelease(title_attribute);
+            }
+            return Vec::new();
+        }
+        let mut window: CFTypeRef = ptr::null();
+        let window_result =
+            AXUIElementCopyAttributeValue(application, focused_window_attribute, &mut window);
+        let mut title: CFTypeRef = ptr::null();
+        let title_result = if window_result == 0 && !window.is_null() {
+            AXUIElementCopyAttributeValue(window, title_attribute, &mut title)
+        } else {
+            -1
+        };
+        let mut buffer = [0_i8; 1024];
+        let converted = title_result == 0
+            && !title.is_null()
+            && CFStringGetCString(
+                title,
+                buffer.as_mut_ptr(),
+                buffer.len() as isize,
+                CF_STRING_ENCODING_UTF8,
+            ) != 0;
+        if !title.is_null() {
+            CFRelease(title);
+        }
+        if !window.is_null() {
+            CFRelease(window);
+        }
+        CFRelease(application);
+        CFRelease(focused_window_attribute);
+        CFRelease(title_attribute);
+        if !converted {
+            return Vec::new();
+        }
+        let bytes = buffer
+            .iter()
+            .take_while(|value| **value != 0)
+            .map(|value| *value as u8)
+            .collect::<Vec<_>>();
+        String::from_utf8(bytes).unwrap_or_default()
+    };
+
+    context_identifiers_for_window_title(&title)
+}
+
+fn context_identifiers_for_window_title(title: &str) -> Vec<String> {
+    let title = title.to_lowercase();
+    let mut identifiers = Vec::new();
+    if title.contains("gmail") {
+        identifiers.push("email:gmail".to_string());
+    }
+    if title.contains("outlook") {
+        identifiers.push("email:outlook".to_string());
+    }
+    identifiers
 }
 
 pub fn request_accessibility_for_current_process() -> bool {
@@ -1428,6 +1543,19 @@ mod tests {
     fn tray_menu_ids_are_unique() {
         let ids = [TRAY_OPEN, TRAY_TOGGLE_DICTATION, TRAY_PAUSE, TRAY_QUIT];
         assert_eq!(ids.iter().copied().collect::<HashSet<_>>().len(), ids.len());
+    }
+
+    #[test]
+    fn window_titles_are_reduced_to_private_context_tags() {
+        assert_eq!(
+            context_identifiers_for_window_title("Inbox (4) - ariel@example.com - Gmail"),
+            vec!["email:gmail"]
+        );
+        assert_eq!(
+            context_identifiers_for_window_title("Inbox - Outlook"),
+            vec!["email:outlook"]
+        );
+        assert!(context_identifiers_for_window_title("Private project notes").is_empty());
     }
 
     #[test]

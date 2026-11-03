@@ -56,6 +56,7 @@ import {
 } from "./snippets";
 import { applyVoiceFormattingCommands } from "./voice-formatting";
 import { normalizeUnicodeText } from "./unicode-text";
+import { applyAppFormatting, type AppFormattingPreset } from "./app-formatting";
 import {
   createAppProfile,
   loadAppProfiles,
@@ -406,7 +407,7 @@ app.innerHTML = `
         <header class="page-header"><div><p class="eyebrow">Personalization</p><h1>Teach Indoor Voice your language</h1><p>Save spelling, reusable phrases, and app-specific behavior. Everything here stays on this computer.</p></div></header>
         <section class="personalization-section"><div class="section-title"><div><h2>Dictionary</h2><p>Correct names, products, Hebrew terms, and technical vocabulary after local transcription.</p></div><div class="section-actions"><button class="button" id="import-dictionary">Import</button><button class="button" id="export-dictionary">Export</button><button class="button primary" id="add-word">Add word</button></div></div><div class="dictionary-list" id="dictionary-list"></div></section>
         <section class="personalization-section"><div class="section-title"><div><h2>Snippets</h2><p>Speak a trigger such as “my email” to insert a saved expansion.</p></div><button class="button primary" id="add-snippet">Add snippet</button></div><div class="dictionary-list" id="snippet-list"></div></section>
-        <section class="personalization-section"><div class="section-title"><div><h2>App profiles</h2><p>Choose language and cleanup behavior automatically for specific apps.</p></div><button class="button primary" id="add-app-profile">Add profile</button></div><div class="dictionary-list" id="app-profile-list"></div></section>
+        <section class="personalization-section"><div class="section-title"><div><h2>App profiles</h2><p>Automatically adapt formatting, language, and transcription quality to the app in use.</p></div><button class="button primary" id="add-app-profile">Add profile</button></div><div class="profile-quick-starts" aria-label="Email profile quick starts"><button type="button" data-profile-quick-start="mail"><span>✉</span><strong>Apple Mail</strong><small>Email</small></button><button type="button" data-profile-quick-start="outlook"><span>O</span><strong>Outlook</strong><small>Email</small></button><button type="button" data-profile-quick-start="gmail"><span>G</span><strong>Gmail</strong><small>Web or app</small></button></div><div class="dictionary-list" id="app-profile-list"></div></section>
       </section>
 
       <section class="page" id="page-privacy">
@@ -456,6 +457,24 @@ app.innerHTML = `
       <div class="dialog-actions"><button class="button" value="cancel">Cancel</button><button class="button danger-action" id="confirm-delete-recording" type="button">Delete permanently</button></div>
     </form>
   </dialog>
+
+  <dialog id="app-profile-dialog" class="app-profile-dialog" aria-labelledby="app-profile-dialog-title">
+    <form id="app-profile-form">
+      <div class="dialog-head"><div><p class="eyebrow">App personalization</p><h2 id="app-profile-dialog-title">New app profile</h2></div><button class="icon-button" id="close-app-profile" type="button" aria-label="Close">×</button></div>
+      <input id="app-profile-id" type="hidden" />
+      <label>Application name<input id="app-profile-name" type="text" autocomplete="off" placeholder="Mail, Outlook, Gmail…" required maxlength="80" /><small>The name shown by macOS. Gmail web is detected locally; its window title is never stored.</small></label>
+      <fieldset class="format-preset-fieldset"><legend>Formatting preset</legend><div class="format-preset-picker" role="radiogroup" aria-label="Formatting preset"><button type="button" role="radio" data-format-preset="standard"><span>¶</span><strong>Standard</strong><small>Natural dictation</small></button><button type="button" role="radio" data-format-preset="email"><span>✉</span><strong>Email</strong><small>Greeting + sign-off</small></button><button type="button" role="radio" data-format-preset="message"><span>•••</span><strong>Message</strong><small>Short and direct</small></button><button type="button" role="radio" data-format-preset="notes"><span>☷</span><strong>Notes</strong><small>Structured capture</small></button></div></fieldset>
+      <section class="email-preset-fields" id="email-preset-fields">
+        <div><strong>Email template</strong><small>Optional defaults are added only when they are not already present.</small></div>
+        <label>Greeting<input id="app-profile-greeting" type="text" autocomplete="off" maxlength="160" placeholder="Dear Alex," /></label>
+        <div class="profile-form-grid"><label>Closing<input id="app-profile-closing" type="text" autocomplete="off" maxlength="120" placeholder="Best," /></label><label>Signature<input id="app-profile-signature" type="text" autocomplete="off" maxlength="240" placeholder="Ariel" /></label></div>
+        <output id="email-preset-preview" dir="auto"></output>
+      </section>
+      <details class="profile-advanced"><summary>Language and model</summary><div class="profile-form-grid"><label>Language<select id="app-profile-language"><option value="auto">Automatic</option><option value="en-he">English / עברית</option><option value="en">English</option><option value="he">עברית</option></select></label><label>Model<select id="app-profile-model"><option value="fast">Fast</option><option value="balanced">Balanced</option><option value="best">Best accuracy</option></select></label></div></details>
+      <p class="form-error" id="app-profile-error" role="alert"></p>
+      <div class="dialog-actions"><button class="button" id="cancel-app-profile" type="button">Cancel</button><button class="button primary" type="submit">Save profile</button></div>
+    </form>
+  </dialog>
 `;
 
 const pill = document.querySelector<HTMLDivElement>("#voice-pill")!;
@@ -481,6 +500,17 @@ const providerError = document.querySelector<HTMLParagraphElement>("#provider-er
 const keyField = document.querySelector<HTMLElement>("#key-field")!;
 const baseUrlField = document.querySelector<HTMLElement>("#base-url-field")!;
 const regionField = document.querySelector<HTMLElement>("#region-field")!;
+const appProfileDialog = document.querySelector<HTMLDialogElement>("#app-profile-dialog")!;
+const appProfileForm = document.querySelector<HTMLFormElement>("#app-profile-form")!;
+const appProfileIdInput = document.querySelector<HTMLInputElement>("#app-profile-id")!;
+const appProfileNameInput = document.querySelector<HTMLInputElement>("#app-profile-name")!;
+const appProfileLanguageSelect = document.querySelector<HTMLSelectElement>("#app-profile-language")!;
+const appProfileModelSelect = document.querySelector<HTMLSelectElement>("#app-profile-model")!;
+const appProfileGreetingInput = document.querySelector<HTMLInputElement>("#app-profile-greeting")!;
+const appProfileClosingInput = document.querySelector<HTMLInputElement>("#app-profile-closing")!;
+const appProfileSignatureInput = document.querySelector<HTMLInputElement>("#app-profile-signature")!;
+const appProfileError = document.querySelector<HTMLParagraphElement>("#app-profile-error")!;
+let selectedFormattingPreset: AppFormattingPreset = "standard";
 let listening = false;
 let selectedRecording = 0;
 let recordingPosition = 0;
@@ -974,7 +1004,15 @@ function applyLocalFormatting(text: string): string {
   }
   if (activeAppProfile?.dictionaryEnabled !== false) formatted = applyDictionary(formatted, dictionaryEntries);
   if (activeAppProfile?.snippetsEnabled !== false) formatted = applySnippets(formatted, snippets);
-  return normalizeCompactTimes(formatted);
+  formatted = normalizeCompactTimes(formatted);
+  return activeAppProfile
+    ? applyAppFormatting(formatted, {
+      preset: activeAppProfile.formattingPreset,
+      greeting: activeAppProfile.emailGreeting,
+      closing: activeAppProfile.emailClosing,
+      signature: activeAppProfile.emailSignature,
+    })
+    : formatted;
 }
 
 function wordCount(text: string): number {
@@ -3128,9 +3166,11 @@ function renderAppProfiles(): void {
     list.innerHTML = `<div class="empty-state"><strong>No app profiles yet</strong><span>Add an app name to apply its preferred language and formatting.</span></div>`;
     return;
   }
-  list.innerHTML = appProfiles.map((profile) => `<div class="dictionary-row" data-profile-id="${escapeHtml(profile.id)}"><div><strong>${escapeHtml(profile.name)}</strong><span>${escapeHtml(profile.appNames.join(", ") || profile.bundleIdentifiers.join(", "))} · ${escapeHtml(profile.language)} · ${escapeHtml(profile.model)}</span></div><div class="row-actions"><button class="button profile-toggle" type="button">${profile.enabled ? "On" : "Off"}</button><button class="icon-button profile-delete" type="button" aria-label="Remove ${escapeHtml(profile.name)}">×</button></div></div>`).join("");
+  const presetNames: Record<AppFormattingPreset, string> = { standard: "Standard", email: "Email", message: "Message", notes: "Notes" };
+  list.innerHTML = appProfiles.map((profile) => `<div class="dictionary-row" data-profile-id="${escapeHtml(profile.id)}"><div><strong>${escapeHtml(profile.name)}</strong><span>${escapeHtml(presetNames[profile.formattingPreset])} formatting · ${escapeHtml(profile.language)} · ${escapeHtml(profile.model)}</span></div><div class="row-actions"><button class="button profile-edit" type="button">Edit</button><button class="button profile-toggle" type="button">${profile.enabled ? "On" : "Off"}</button><button class="icon-button profile-delete" type="button" aria-label="Remove ${escapeHtml(profile.name)}">×</button></div></div>`).join("");
   list.querySelectorAll<HTMLElement>("[data-profile-id]").forEach((row) => {
     const profile = appProfiles.find((item) => item.id === row.dataset.profileId)!;
+    row.querySelector<HTMLButtonElement>(".profile-edit")!.addEventListener("click", () => openAppProfileDialog(profile));
     row.querySelector<HTMLButtonElement>(".profile-toggle")!.addEventListener("click", () => {
       profile.enabled = !profile.enabled;
       saveAppProfiles(appProfiles);
@@ -3142,6 +3182,65 @@ function renderAppProfiles(): void {
       renderAppProfiles();
     });
   });
+}
+
+let appProfileDraft: AppProfile | undefined;
+
+const profileQuickStarts: Record<string, Parameters<typeof createAppProfile>[0]> = {
+  mail: { name: "Mail", appNames: ["Mail"], bundleIdentifiers: ["com.apple.mail"], formattingPreset: "email", emailClosing: "Best," },
+  outlook: { name: "Microsoft Outlook", appNames: ["Microsoft Outlook", "Outlook"], bundleIdentifiers: ["com.microsoft.Outlook"], contextIdentifiers: ["email:outlook"], formattingPreset: "email", emailClosing: "Best," },
+  gmail: { name: "Gmail", appNames: ["Gmail"], contextIdentifiers: ["email:gmail"], formattingPreset: "email", emailClosing: "Best," },
+};
+
+function syncAppProfileDialog(): void {
+  document.querySelectorAll<HTMLButtonElement>("[data-format-preset]").forEach((button) => {
+    const selected = button.dataset.formatPreset === selectedFormattingPreset;
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-checked", String(selected));
+  });
+  document.querySelector<HTMLElement>("#email-preset-fields")!.hidden = selectedFormattingPreset !== "email";
+  const preview = applyAppFormatting("I wanted to share the project update with you.", {
+    preset: "email",
+    greeting: appProfileGreetingInput.value.trim() || "Dear Alex,",
+    closing: appProfileClosingInput.value.trim() || "Best,",
+    signature: appProfileSignatureInput.value.trim() || "Your name",
+  });
+  document.querySelector<HTMLOutputElement>("#email-preset-preview")!.textContent = preview;
+}
+
+function openAppProfileDialog(profile?: AppProfile): void {
+  appProfileDraft = profile ? { ...profile } : undefined;
+  appProfileIdInput.value = profile?.id ?? "";
+  appProfileNameInput.value = profile?.name ?? "";
+  appProfileLanguageSelect.value = profile?.language ?? "auto";
+  appProfileModelSelect.value = profile?.model ?? "balanced";
+  selectedFormattingPreset = profile?.formattingPreset ?? "standard";
+  appProfileGreetingInput.value = profile?.emailGreeting ?? "";
+  appProfileClosingInput.value = profile?.emailClosing ?? "";
+  appProfileSignatureInput.value = profile?.emailSignature ?? "";
+  appProfileError.textContent = "";
+  document.querySelector("#app-profile-dialog-title")!.textContent = profile ? `Edit ${profile.name}` : "New app profile";
+  syncAppProfileDialog();
+  appProfileDialog.showModal();
+  requestAnimationFrame(() => appProfileNameInput.focus());
+}
+
+function openQuickStartProfile(key: string): void {
+  const input = profileQuickStarts[key];
+  if (!input) return;
+  const names = new Set((input.appNames ?? []).map((name) => name.toLocaleLowerCase()));
+  const bundles = new Set((input.bundleIdentifiers ?? []).map((bundle) => bundle.toLocaleLowerCase()));
+  const contexts = new Set((input.contextIdentifiers ?? []).map((context) => context.toLocaleLowerCase()));
+  const existing = appProfiles.find((profile) => profile.appNames.some((name) => names.has(name))
+    || profile.bundleIdentifiers.some((bundle) => bundles.has(bundle))
+    || profile.contextIdentifiers.some((context) => contexts.has(context)));
+  if (existing) {
+    openAppProfileDialog(existing);
+    return;
+  }
+  openAppProfileDialog(createAppProfile(input));
+  appProfileIdInput.value = "";
+  document.querySelector("#app-profile-dialog-title")!.textContent = `Set up ${input.name}`;
 }
 
 document.querySelector("#add-word")!.addEventListener("click", () => {
@@ -3174,16 +3273,47 @@ document.querySelector("#add-snippet")!.addEventListener("click", () => {
   }
 });
 
-document.querySelector("#add-app-profile")!.addEventListener("click", () => {
-  const appName = window.prompt("Application name, for example Mail or WhatsApp")?.trim();
-  if (!appName) return;
-  const languageInput = window.prompt("Language: auto, en, or he", "auto")?.trim().toLowerCase();
-  const language = languageInput === "en" || languageInput === "he" ? languageInput : "auto";
-  const modelInput = window.prompt("Model: fast, balanced, or best", "balanced")?.trim().toLowerCase();
-  const model = modelInput === "fast" || modelInput === "best" ? modelInput : "balanced";
-  appProfiles = [...appProfiles, createAppProfile({ name: appName, appNames: [appName], language, model })];
+document.querySelector("#add-app-profile")!.addEventListener("click", () => openAppProfileDialog());
+document.querySelectorAll<HTMLButtonElement>("[data-profile-quick-start]").forEach((button) => {
+  button.addEventListener("click", () => openQuickStartProfile(button.dataset.profileQuickStart ?? ""));
+});
+document.querySelectorAll<HTMLButtonElement>("[data-format-preset]").forEach((button) => {
+  button.addEventListener("click", () => {
+    selectedFormattingPreset = button.dataset.formatPreset as AppFormattingPreset;
+    syncAppProfileDialog();
+  });
+});
+[appProfileGreetingInput, appProfileClosingInput, appProfileSignatureInput].forEach((input) => input.addEventListener("input", syncAppProfileDialog));
+document.querySelector("#close-app-profile")!.addEventListener("click", () => appProfileDialog.close());
+document.querySelector("#cancel-app-profile")!.addEventListener("click", () => appProfileDialog.close());
+appProfileForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const name = appProfileNameInput.value.trim();
+  if (!name) {
+    appProfileError.textContent = "Enter the application name shown by macOS.";
+    appProfileNameInput.focus();
+    return;
+  }
+  const base = appProfileDraft ?? createAppProfile({ name, appNames: [name] });
+  const normalizedName = name.toLocaleLowerCase();
+  const next: AppProfile = {
+    ...base,
+    name,
+    appNames: [...new Set([...base.appNames, normalizedName])],
+    language: appProfileLanguageSelect.value as AppProfile["language"],
+    model: appProfileModelSelect.value as AppProfile["model"],
+    formattingPreset: selectedFormattingPreset,
+    emailGreeting: appProfileGreetingInput.value.trim(),
+    emailClosing: appProfileClosingInput.value.trim(),
+    emailSignature: appProfileSignatureInput.value.trim(),
+    updatedAt: new Date().toISOString(),
+  };
+  const existingIndex = appProfiles.findIndex((profile) => profile.id === appProfileIdInput.value);
+  if (existingIndex >= 0) appProfiles = appProfiles.map((profile, index) => index === existingIndex ? next : profile);
+  else appProfiles = [...appProfiles, next];
   saveAppProfiles(appProfiles);
   renderAppProfiles();
+  appProfileDialog.close();
 });
 
 document.querySelector("#export-dictionary")!.addEventListener("click", () => {

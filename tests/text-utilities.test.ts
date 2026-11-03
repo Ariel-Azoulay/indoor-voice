@@ -15,6 +15,7 @@ import {
   resolveAppProfile,
   saveAppProfiles,
 } from "../src/app-profiles";
+import { applyAppFormatting, formatEmail } from "../src/app-formatting";
 import type { KeyValueStorage } from "../src/local-store";
 import { processLocalTranscript } from "../src/text-processing";
 
@@ -146,6 +147,27 @@ function testProfiles(): void {
   const loaded = loadAppProfiles(storage);
   equal(loaded.length, 2, "Profiles persist locally");
   ok(loaded[0]?.dictionaryEnabled, "Profile feature flags survive persistence");
+  const gmail = createAppProfile({ name: "Gmail", contextIdentifiers: ["email:gmail"], formattingPreset: "email" });
+  equal(resolveAppProfile([mail, gmail], { name: "Google Chrome", contextIdentifiers: ["email:gmail"] })?.id, gmail.id, "Private browser context resolves Gmail profile");
+  equal(loaded[0]?.formattingPreset, "standard", "Profiles persist their formatting preset");
+}
+
+function testAppFormatting(): void {
+  equal(
+    formatEmail("Dear A, here is the update."),
+    "Dear A,\n\nhere is the update.",
+    "Email salutation separates from its body",
+  );
+  equal(
+    applyAppFormatting("Here is the update.", { preset: "email", greeting: "Dear A,", closing: "Best,", signature: "Ariel" }),
+    "Dear A,\n\nHere is the update.\n\nBest,\nAriel",
+    "Email preset adds configured greeting and sign-off",
+  );
+  equal(
+    applyAppFormatting("Dear A,\n\nHere is the update.\n\nBest,\nAriel", { preset: "email", greeting: "Dear A,", closing: "Best,", signature: "Ariel" }),
+    "Dear A,\n\nHere is the update.\n\nBest,\nAriel",
+    "Email preset does not duplicate existing template text",
+  );
 }
 
 function testCombinedPipeline(): void {
@@ -164,6 +186,7 @@ testLists();
 testVoiceCommands();
 testUnicode();
 testProfiles();
+testAppFormatting();
 testCombinedPipeline();
 
 console.log("Text utility tests passed.");
