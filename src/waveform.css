@@ -327,12 +327,12 @@
  * stable while live text and controls have their own predictable regions. */
 .voice-pill.expanded-listening,
 .screen-pill.expanded-listening {
-  width: 380px;
-  min-width: 380px;
-  max-width: 380px;
-  height: 82px;
-  padding: 9px 11px 10px;
-  border-radius: 25px;
+  width: 440px;
+  min-width: 440px;
+  max-width: 440px;
+  height: 104px;
+  padding: 14px 16px 15px;
+  border-radius: 30px;
   contain: layout paint;
 }
 
@@ -346,17 +346,17 @@
   width: 100%;
   min-width: 0;
   display: grid;
-  grid-template-rows: 23px 1fr;
-  gap: 5px;
+  grid-template-rows: 22px 1fr;
+  gap: 9px;
 }
 
 .expanded-listening .expanded-live-text {
   min-width: 0;
   overflow: hidden;
   color: color-mix(in srgb, var(--pill-text) 92%, transparent);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 560;
-  line-height: 20px;
+  line-height: 22px;
   letter-spacing: -.006em;
   text-align: start;
   text-overflow: ellipsis;
@@ -367,19 +367,19 @@
 .expanded-listening-row {
   min-width: 0;
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) 67px;
+  grid-template-columns: 34px minmax(0, 1fr) 78px;
   align-items: center;
-  gap: 15px;
+  gap: 22px;
 }
 
 .expanded-app-icon {
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   overflow: hidden;
   display: grid;
   place-items: center;
   border: 1px solid color-mix(in srgb, var(--pill-border) 12%, transparent);
-  border-radius: 8px;
+  border-radius: 9px;
   background: color-mix(in srgb, var(--pill-text) 10%, transparent);
   color: color-mix(in srgb, var(--pill-text) 88%, transparent);
   font-size: 12px;
@@ -396,7 +396,7 @@
 
 .expanded-listening-visual {
   min-width: 0;
-  height: 31px;
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -405,25 +405,25 @@
 }
 
 .expanded-listening-visual .brand-waveform {
-  --brand-wave-width: 206px;
-  --brand-wave-height: 31px;
-  width: min(206px, 100%);
+  --brand-wave-width: 222px;
+  --brand-wave-height: 36px;
+  width: min(222px, 100%);
 }
 
 .expanded-listening-visual .bars,
 .expanded-listening-visual .overlay-bars {
-  height: 28px;
+  height: 32px;
 }
 
 .expanded-listening-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 7px;
+  gap: 10px;
 }
 
 .expanded-pill-action {
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   padding: 0;
   display: grid;
   place-items: center;
