@@ -289,6 +289,7 @@ app.innerHTML = `
             <label class="range-setting"><span><strong>Screen margin</strong><output id="pill-margin-value">18 px</output></span><input id="pill-margin" type="range" min="4" max="80" step="1" value="18" /></label>
             <div class="size-setting"><span><strong>Pill size</strong><output id="pill-scale-value">82%</output></span><div class="size-presets" role="group" aria-label="Pill size"><button type="button" data-pill-scale="0.68">Small</button><button type="button" data-pill-scale="0.82">Compact</button><button type="button" data-pill-scale="1">Regular</button></div></div>
             <label class="range-setting exact-size"><span><strong>Exact size</strong><small>Drag to fine-tune</small></span><input id="pill-scale" type="range" min="55" max="130" step="1" value="82" aria-label="Exact pill size" /></label>
+            <div class="listening-layout-setting"><span><strong>Listening pill</strong><small>Compact, or expanded with live text and controls.</small></span><div class="listening-layout-picker" role="radiogroup" aria-label="Listening pill layout"><button type="button" role="radio" data-listening-layout="compact">Compact</button><button type="button" role="radio" data-listening-layout="expanded">Expanded</button></div></div>
           </section>
           <section class="customization-card behavior-card state-editor">
             <div class="customization-head"><div><p class="setting-kicker">This moment only</p><h2 id="state-editor-title">Listening</h2><p id="state-editor-description">Customize what appears while your microphone is active.</p></div><span class="state-scope-badge">Independent</span></div>
@@ -516,6 +517,8 @@ let silentOutput: GainNode | undefined;
 let microphoneChunks: Float32Array[] = [];
 let microphoneSampleRate = 48_000;
 let nativeCaptureActive = false;
+let capturePaused = false;
+let activeAppIdentity: ForegroundAppIdentity = {};
 let microphonePermissionReady = false;
 let accessibilityReady = false;
 let liveTranscriptTimer: number | undefined;
@@ -643,9 +646,42 @@ function pillStateLabel(state: PillState, message?: string): string {
   }[state];
 }
 
+function usesExpandedListening(state: PillState): boolean {
+  return pillCustomization.listeningLayout === "expanded" && (state === "listening" || state === "handsfree");
+}
+
+function appIdentityMarkup(identity: ForegroundAppIdentity = activeAppIdentity): string {
+  const name = identity.name?.trim() || "Current app";
+  const icon = identity.iconDataUrl?.startsWith("data:image/png;base64,")
+    ? `<img src="${identity.iconDataUrl}" alt="" />`
+    : `<span aria-hidden="true">${escapeHtml(name.slice(0, 1).toLocaleUpperCase())}</span>`;
+  return `<span class="expanded-app-icon" title="${escapeHtml(name)}" aria-label="Dictating into ${escapeHtml(name)}">${icon}</span>`;
+}
+
+function expandedListeningMarkup(message: string | undefined, mode: PillContentMode): string {
+  const visual = mode === "levels" ? waveform() : brandWaveformMarkup();
+  const liveText = capturePaused ? "Paused" : message?.trim() || "Listening…";
+  const pauseLabel = capturePaused ? "Resume listening" : "Pause listening";
+  const pauseIcon = capturePaused
+    ? `<path d="M9 7.3v9.4l7-4.7z" />`
+    : `<path d="M9 7v10M15 7v10" />`;
+  return `<span class="expanded-listening-shell">
+    <strong class="expanded-live-text" dir="auto">${escapeHtml(liveText)}</strong>
+    <span class="expanded-listening-row">
+      ${appIdentityMarkup()}
+      <span class="expanded-listening-visual" aria-hidden="true">${visual}</span>
+      <span class="expanded-listening-actions">
+        <button class="expanded-pill-action expanded-pause" type="button" data-capture-pause aria-label="${pauseLabel}" aria-pressed="${capturePaused}"><svg viewBox="0 0 24 24" aria-hidden="true">${pauseIcon}</svg></button>
+        <button class="expanded-pill-action expanded-cancel" type="button" data-capture-cancel aria-label="Cancel dictation"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9" /></svg></button>
+      </span>
+    </span>
+  </span>`;
+}
+
 function pillMarkup(state: PillState, message?: string): string {
   const stage = stateCustomization(pillCustomization, state);
   const mode = stage.contentMode;
+  if (usesExpandedListening(state)) return expandedListeningMarkup(message, mode);
   const statusLabel = `<span class="pill-label" dir="auto">${escapeHtml(pillStateLabel(state, message))}</span>`;
   const transcriptLabel = `<span class="pill-label transcript-label" dir="auto">${escapeHtml(
     state === "success" && message
@@ -681,11 +717,23 @@ function pillMarkup(state: PillState, message?: string): string {
 }
 
 function setPillState(state: PillState, message?: string): void {
+  if (state === currentPillState && usesExpandedListening(state) && !capturePaused && message) {
+    const liveText = pillContent.querySelector<HTMLElement>(".expanded-live-text");
+    const pauseButton = pillContent.querySelector<HTMLElement>("[data-capture-pause]");
+    if (liveText && pauseButton?.getAttribute("aria-pressed") === String(capturePaused)) {
+      liveText.textContent = message;
+      currentPillMessage = message;
+      void emit("pill-state", { state, message }).catch(() => {
+        // Browser preview has no native event bus.
+      });
+      return;
+    }
+  }
   const previousRect = beginPillGeometryTransition(pill);
   const previousState = currentPillState;
   const previousContentMode = pill.dataset.contentMode;
   const stage = stateCustomization(pillCustomization, state);
-  const keepsLivingWave = previousContentMode === "waveform"
+  const keepsLivingWave = !usesExpandedListening(state) && previousContentMode === "waveform"
     && stage.contentMode === "waveform"
     && pillContent.querySelector(".brand-waveform") !== null
     && (previousState === "listening" || previousState === "handsfree" || previousState === "working")
@@ -704,8 +752,9 @@ function setPillState(state: PillState, message?: string): void {
   });
   currentPillState = state;
   currentPillMessage = message;
-  pillCluster.className = `pill-cluster home-pill-cluster ${state}${morphsFromSpinner ? " spinner-to-success" : ""}`;
-  pill.className = `voice-pill ${state}${morphsFromSpinner ? " spinner-to-success" : ""}`;
+  const expandedClass = usesExpandedListening(state) ? " expanded-listening" : "";
+  pillCluster.className = `pill-cluster home-pill-cluster ${state}${expandedClass}${morphsFromSpinner ? " spinner-to-success" : ""}`;
+  pill.className = `voice-pill ${state}${expandedClass}${capturePaused ? " capture-paused" : ""}${morphsFromSpinner ? " spinner-to-success" : ""}`;
   applyPillCustomization(pillCluster, pillCustomization, state);
   applyPillCustomization(pill, pillCustomization, state);
   pill.dataset.contentMode = stage.contentMode;
@@ -736,9 +785,9 @@ function stopLiveTranscription(): void {
 }
 
 async function updateLiveTranscript(run: number): Promise<void> {
-  if (!nativeCaptureActive || liveTranscriptInFlight || run !== liveTranscriptRun) return;
+  if (!nativeCaptureActive || capturePaused || liveTranscriptInFlight || run !== liveTranscriptRun) return;
   const pillState = activeCaptureMode === "toggle" ? "handsfree" : "listening";
-  if (stateCustomization(pillCustomization, pillState).contentMode !== "transcript") return;
+  if (!usesExpandedListening(pillState) && stateCustomization(pillCustomization, pillState).contentMode !== "transcript") return;
   liveTranscriptInFlight = true;
   try {
     const result = await safeInvoke<TranscriptionResult>("preview_active_capture", {
@@ -763,7 +812,7 @@ function startLiveTranscription(): void {
   if (!isDesktopRuntime) return;
   if (localStorage.getItem("indoor-voice:live-preview") === "off") return;
   const pillState = activeCaptureMode === "toggle" ? "handsfree" : "listening";
-  if (stateCustomization(pillCustomization, pillState).contentMode !== "transcript") return;
+  if (!usesExpandedListening(pillState) && stateCustomization(pillCustomization, pillState).contentMode !== "transcript") return;
   setPillState(pillState, "Speak…");
   const run = liveTranscriptRun;
   window.setTimeout(() => void updateLiveTranscript(run), 1200);
@@ -777,6 +826,64 @@ async function cancelProcessing(): Promise<void> {
   await safeInvoke("cancel_transcription").catch(() => undefined);
   setPillState("idle");
   demoMessage.textContent = "Processing canceled. Nothing was inserted.";
+}
+
+async function setCapturePaused(paused: boolean): Promise<void> {
+  if ((!nativeCaptureActive && !microphoneStream) || capturePaused === paused) return;
+  try {
+    if (nativeCaptureActive) {
+      await safeInvoke(paused ? "pause_audio_capture" : "resume_audio_capture");
+    } else if (microphoneContext) {
+      if (paused) {
+        if (microphoneRecorder?.state === "recording") microphoneRecorder.pause();
+        await microphoneContext.suspend();
+      } else {
+        if (microphoneRecorder?.state === "paused") microphoneRecorder.resume();
+        await microphoneContext.resume();
+      }
+    }
+    capturePaused = paused;
+    const state = activeCaptureMode === "toggle" ? "handsfree" : "listening";
+    if (paused) stopLiveTranscription();
+    setPillState(state, paused ? "Paused" : currentPillMessage);
+    if (!paused) startLiveTranscription();
+    void emit("pill-capture-paused", { paused }).catch(() => {
+      // Browser preview has no native event bus.
+    });
+    demoMessage.textContent = paused ? "Listening paused. Your recording is kept." : "Listening resumed…";
+  } catch (error) {
+    demoMessage.textContent = error instanceof Error ? error.message : "The recording could not be paused.";
+  }
+}
+
+async function cancelMicrophoneCapture(): Promise<void> {
+  if (!nativeCaptureActive && !microphoneStream) return;
+  stopLiveTranscription();
+  listening = false;
+  capturePaused = false;
+  void emit("pill-capture-paused", { paused: false }).catch(() => undefined);
+  if (nativeCaptureActive) {
+    nativeCaptureActive = false;
+    await safeInvoke("stop_audio_capture").catch(() => undefined);
+  } else {
+    await stopMicrophoneRecorder().catch(() => undefined);
+    microphoneProcessor?.disconnect();
+    microphoneSource?.disconnect();
+    silentOutput?.disconnect();
+    microphoneStream?.getTracks().forEach((track) => track.stop());
+    await microphoneContext?.close().catch(() => undefined);
+    microphoneStream = undefined;
+    microphoneRecorder = undefined;
+    microphoneContext = undefined;
+    microphoneSource = undefined;
+    microphoneProcessor = undefined;
+    silentOutput = undefined;
+    microphoneChunks = [];
+    microphoneBlobs = [];
+  }
+  updateWaveformLevel(0);
+  setPillState("idle");
+  demoMessage.textContent = "Dictation canceled. Nothing was inserted.";
 }
 
 function resampleToWhisperRate(input: Float32Array, sourceRate: number): Float32Array {
@@ -1078,8 +1185,13 @@ async function startMicrophoneCapture(mode: InputMode = inputMode()): Promise<vo
   }
   try {
     const identity = await safeInvoke<ForegroundAppIdentity>("focused_application");
+    activeAppIdentity = identity;
     activeAppProfile = resolveAppProfile(appProfiles, identity);
+    void emit("pill-app-context", identity).catch(() => {
+      // Browser preview has no native event bus.
+    });
   } catch {
+    activeAppIdentity = {};
     activeAppProfile = undefined;
   }
   activeCaptureMode = mode;
@@ -1132,6 +1244,8 @@ async function startMicrophoneCapture(mode: InputMode = inputMode()): Promise<vo
       silentOutput.connect(microphoneContext.destination);
     }
     listening = true;
+    capturePaused = false;
+    void emit("pill-capture-paused", { paused: false }).catch(() => undefined);
     setPillState(mode === "toggle" ? "handsfree" : "listening");
     startLiveTranscription();
     demoMessage.textContent =
@@ -1225,6 +1339,8 @@ async function finishMicrophoneCapture(paste: boolean): Promise<void> {
   stopLiveTranscription();
   await safeInvoke("cancel_transcription").catch(() => undefined);
   listening = false;
+  capturePaused = false;
+  void emit("pill-capture-paused", { paused: false }).catch(() => undefined);
   const elapsedMilliseconds = performance.now() - microphoneStartedAt;
   if (nativeCaptureActive) {
     nativeCaptureActive = false;
@@ -2063,7 +2179,7 @@ function renderAppearancePreview(): void {
     && appearancePreviewState === "success"
     && stateCustomization(pillCustomization, "working").contentMode === "waveform";
   const previewStage = stateCustomization(pillCustomization, appearancePreviewState);
-  const keepsLivingWave = previousContentMode === "waveform"
+  const keepsLivingWave = !usesExpandedListening(appearancePreviewState) && previousContentMode === "waveform"
     && previewStage.contentMode === "waveform"
     && previewContent.querySelector(".brand-waveform") !== null
     && (previousAppearancePreviewState === "listening" || previousAppearancePreviewState === "handsfree" || previousAppearancePreviewState === "working")
@@ -2084,8 +2200,9 @@ function renderAppearancePreview(): void {
     reuseContent: keepsLivingWave,
     reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
   });
-  previewCluster.className = `pill-cluster appearance-pill-cluster ${appearancePreviewState}${morphsFromSpinner ? " spinner-to-success" : ""}`;
-  preview.className = `voice-pill appearance-pill ${appearancePreviewState}${morphsFromSpinner ? " spinner-to-success" : ""}`;
+  const expandedClass = usesExpandedListening(appearancePreviewState) ? " expanded-listening" : "";
+  previewCluster.className = `pill-cluster appearance-pill-cluster ${appearancePreviewState}${expandedClass}${morphsFromSpinner ? " spinner-to-success" : ""}`;
+  preview.className = `voice-pill appearance-pill ${appearancePreviewState}${expandedClass}${morphsFromSpinner ? " spinner-to-success" : ""}`;
   applyPillCustomization(previewCluster, pillCustomization, appearancePreviewState);
   applyPillCustomization(preview, pillCustomization, appearancePreviewState);
   preview.dataset.contentMode = previewStage.contentMode;
@@ -2147,6 +2264,11 @@ function syncAppearanceControls(): void {
     const selected = Math.abs(pillCustomization.scale - scale) < 0.015;
     button.classList.toggle("active", selected);
     button.setAttribute("aria-pressed", String(selected));
+  });
+  document.querySelectorAll<HTMLButtonElement>("[data-listening-layout]").forEach((button) => {
+    const selected = button.dataset.listeningLayout === pillCustomization.listeningLayout;
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-checked", String(selected));
   });
   document.querySelector("#state-editor-title")!.textContent = pillStateNames[selectedCustomizationState];
   document.querySelector("#state-editor-description")!.textContent = pillStateDescriptions[selectedCustomizationState];
@@ -2273,6 +2395,9 @@ function applyCurrentPillCustomization(persist = true): void {
   applyPillCustomization(pill, pillCustomization, currentPillState);
   const previousContentMode = pill.dataset.contentMode;
   const currentStage = stateCustomization(pillCustomization, currentPillState);
+  const expandedClass = usesExpandedListening(currentPillState) ? " expanded-listening" : "";
+  pillCluster.className = `pill-cluster home-pill-cluster ${currentPillState}${expandedClass}`;
+  pill.className = `voice-pill ${currentPillState}${expandedClass}${capturePaused ? " capture-paused" : ""}`;
   pill.dataset.contentMode = currentStage.contentMode;
   transitionPillContent({
     pill,
@@ -2280,7 +2405,7 @@ function applyCurrentPillCustomization(persist = true): void {
     markup: pillMarkup(currentPillState, currentPillMessage),
     fromState: currentPillState,
     toState: currentPillState,
-    reuseContent: previousContentMode === "waveform"
+    reuseContent: !usesExpandedListening(currentPillState) && previousContentMode === "waveform"
       && currentStage.contentMode === "waveform"
       && pillContent.querySelector(".brand-waveform") !== null,
     reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
@@ -2383,6 +2508,16 @@ document.querySelectorAll<HTMLButtonElement>("[data-pill-scale]").forEach((butto
   button.addEventListener("click", () => {
     markAppearanceCustom();
     pillCustomization.scale = Number(button.dataset.pillScale);
+    syncAppearanceControls();
+    applyCurrentPillCustomization();
+  });
+});
+document.querySelectorAll<HTMLButtonElement>("[data-listening-layout]").forEach((button) => {
+  button.addEventListener("click", () => {
+    markAppearanceCustom();
+    pillCustomization.listeningLayout = button.dataset.listeningLayout === "expanded" ? "expanded" : "compact";
+    appearancePreviewState = "listening";
+    selectedCustomizationState = "listening";
     syncAppearanceControls();
     applyCurrentPillCustomization();
   });
@@ -2531,6 +2666,11 @@ document.querySelector<HTMLButtonElement>("#undo-insertion")!.addEventListener("
   }
 });
 pillCancel.addEventListener("click", () => void cancelProcessing());
+pill.addEventListener("click", (event) => {
+  const target = event.target as HTMLElement;
+  if (target.closest("[data-capture-pause]")) void setCapturePaused(!capturePaused);
+  if (target.closest("[data-capture-cancel]")) void cancelMicrophoneCapture();
+});
 window.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && processingActive) void cancelProcessing();
 });
@@ -3216,6 +3356,8 @@ renderStatistics();
 async function bindNativeShortcut(): Promise<void> {
   try {
     await listen("cancel-processing-request", () => void cancelProcessing());
+    await listen<{ paused: boolean }>("capture-pause-request", (event) => void setCapturePaused(event.payload.paused));
+    await listen("capture-cancel-request", () => void cancelMicrophoneCapture());
     const control = await safeInvoke<DictationControlStatus>("dictation_control_status");
     dictationPaused = control.paused;
     await listen<DictationControlEvent>("dictation-control-request", (event) => {

@@ -323,6 +323,150 @@
   to { opacity: 1; transform: translateX(0); }
 }
 
+/* Optional two-row listening surface. It keeps the waveform's visual center
+ * stable while live text and controls have their own predictable regions. */
+.voice-pill.expanded-listening,
+.screen-pill.expanded-listening {
+  width: 380px;
+  min-width: 380px;
+  max-width: 380px;
+  height: 82px;
+  padding: 9px 11px 10px;
+  border-radius: 25px;
+  contain: layout paint;
+}
+
+.expanded-listening .pill-content {
+  width: 100%;
+  height: 100%;
+  pointer-events: auto;
+}
+
+.expanded-listening-shell {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-rows: 23px 1fr;
+  gap: 5px;
+}
+
+.expanded-listening .expanded-live-text {
+  min-width: 0;
+  overflow: hidden;
+  color: color-mix(in srgb, var(--pill-text) 92%, transparent);
+  font-size: 12px;
+  font-weight: 560;
+  line-height: 20px;
+  letter-spacing: -.006em;
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  unicode-bidi: plaintext;
+}
+
+.expanded-listening-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 67px;
+  align-items: center;
+  gap: 15px;
+}
+
+.expanded-app-icon {
+  width: 30px;
+  height: 30px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--pill-border) 12%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--pill-text) 10%, transparent);
+  color: color-mix(in srgb, var(--pill-text) 88%, transparent);
+  font-size: 12px;
+  font-weight: 720;
+  box-shadow: 0 2px 7px rgb(0 0 0 / .22);
+}
+
+.expanded-app-icon img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
+.expanded-listening-visual {
+  min-width: 0;
+  height: 31px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: opacity 160ms ease, filter 160ms ease;
+}
+
+.expanded-listening-visual .brand-waveform {
+  --brand-wave-width: 206px;
+  --brand-wave-height: 31px;
+  width: min(206px, 100%);
+}
+
+.expanded-listening-visual .bars,
+.expanded-listening-visual .overlay-bars {
+  height: 28px;
+}
+
+.expanded-listening-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.expanded-pill-action {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--pill-border) 12%, transparent);
+  border-radius: 50%;
+  color: color-mix(in srgb, var(--pill-text) 88%, transparent);
+  background: color-mix(in srgb, var(--pill-text) 9%, transparent);
+  cursor: pointer;
+  transition: transform 100ms ease, color 120ms ease, background 120ms ease;
+}
+
+.expanded-pill-action:hover {
+  color: var(--pill-text);
+  background: color-mix(in srgb, var(--pill-text) 17%, transparent);
+}
+
+.expanded-pill-action:active { transform: scale(.9); }
+.expanded-pill-action:focus-visible { outline: 2px solid var(--pill-text); outline-offset: 2px; }
+.expanded-pill-action svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.expanded-pause[aria-pressed="true"] svg path { fill: currentColor; stroke: currentColor; }
+.expanded-cancel { color: color-mix(in srgb, #ff6961 86%, var(--pill-text)); }
+.capture-paused .expanded-listening-visual { opacity: .34; filter: saturate(.55); }
+
+.listening-layout-setting {
+  display: grid;
+  gap: 9px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.listening-layout-setting > span { display: grid; gap: 3px; }
+.listening-layout-setting strong { font-size: 10px; }
+.listening-layout-setting small { color: #77777c; font-size: 9px; line-height: 1.4; }
+.listening-layout-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 3px; border-radius: 9px; background: rgb(118 118 128 / .14); }
+.listening-layout-picker button { min-height: 30px; border: 0; border-radius: 7px; color: #77777c; background: transparent; font-size: 10px; font-weight: 650; cursor: pointer; }
+.listening-layout-picker button.active { color: #1d1d1f; background: #fff; box-shadow: 0 1px 4px rgb(0 0 0 / .11); }
+
+@media (prefers-color-scheme: dark) {
+  .listening-layout-setting small, .listening-layout-picker button { color: #a1a1a6; }
+  .listening-layout-picker button.active { color: #fff; background: #48484a; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pill-cluster { transition: none; }
 
@@ -338,4 +482,7 @@
   .spinner-to-success .transcript-label {
     animation: none;
   }
+
+  .expanded-listening-visual,
+  .expanded-pill-action { transition: none; }
 }

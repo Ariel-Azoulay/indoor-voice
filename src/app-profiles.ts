@@ -40,6 +40,7 @@ export interface AppProfileInput {
 export interface ForegroundAppIdentity {
   name?: string | null;
   bundleIdentifier?: string | null;
+  iconDataUrl?: string | null;
 }
 
 export function createAppProfile(input: AppProfileInput, now = new Date()): AppProfile {

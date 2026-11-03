@@ -10,6 +10,7 @@ import { cancelPillContentTransition, transitionPillContent } from "./pill-motio
 
 interface PillStateEvent { state: PillState; message?: string }
 interface PillLevelEvent { level: number }
+interface PillAppContext { name?: string | null; bundleIdentifier?: string | null; iconDataUrl?: string | null }
 
 const root = document.querySelector<HTMLElement>("#overlay-root");
 if (!root) throw new Error("Overlay root not found");
@@ -39,6 +40,8 @@ let lastAnnouncement = "";
 let geometryAnimation: Animation | undefined;
 let customization = loadPillCustomization();
 let currentContentMode = stateCustomization(customization, currentState).contentMode;
+let currentApp: PillAppContext = {};
+let capturePaused = false;
 
 function bars(): string {
   return `<span class="overlay-bars">${[0.58, 0.86, 1, 0.7, 0.94, 0.63, 0.82, 0.48]
@@ -71,9 +74,42 @@ function announce(state: PillState, message?: string): void {
   else politeStatus.textContent = announcement;
 }
 
+function usesExpandedListening(state: PillState): boolean {
+  return customization.listeningLayout === "expanded" && (state === "listening" || state === "handsfree");
+}
+
+function appIdentityMarkup(): string {
+  const name = currentApp.name?.trim() || "Current app";
+  const icon = currentApp.iconDataUrl?.startsWith("data:image/png;base64,")
+    ? `<img src="${currentApp.iconDataUrl}" alt="" />`
+    : `<span aria-hidden="true">${escapeHtml(name.slice(0, 1).toLocaleUpperCase())}</span>`;
+  return `<span class="expanded-app-icon" title="${escapeHtml(name)}" aria-label="Dictating into ${escapeHtml(name)}">${icon}</span>`;
+}
+
+function expandedListeningMarkup(message: string | undefined, mode: PillCustomization["contentMode"]): string {
+  const visual = mode === "levels" ? bars() : brandWaveformMarkup();
+  const liveText = capturePaused ? "Paused" : message?.trim() || "Listening…";
+  const pauseLabel = capturePaused ? "Resume listening" : "Pause listening";
+  const pauseIcon = capturePaused
+    ? `<path d="M9 7.3v9.4l7-4.7z" />`
+    : `<path d="M9 7v10M15 7v10" />`;
+  return `<span class="expanded-listening-shell">
+    <strong class="expanded-live-text" dir="auto">${escapeHtml(liveText)}</strong>
+    <span class="expanded-listening-row">
+      ${appIdentityMarkup()}
+      <span class="expanded-listening-visual" aria-hidden="true">${visual}</span>
+      <span class="expanded-listening-actions">
+        <button class="expanded-pill-action expanded-pause" type="button" data-capture-pause aria-label="${pauseLabel}" aria-pressed="${capturePaused}"><svg viewBox="0 0 24 24" aria-hidden="true">${pauseIcon}</svg></button>
+        <button class="expanded-pill-action expanded-cancel" type="button" data-capture-cancel aria-label="Cancel dictation"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9" /></svg></button>
+      </span>
+    </span>
+  </span>`;
+}
+
 function pillMarkup(state: PillState, message?: string): string {
   const stage = stateCustomization(customization, state);
   const mode = stage.contentMode;
+  if (usesExpandedListening(state)) return expandedListeningMarkup(message, mode);
   const statusLabel = `<strong dir="auto">${escapeHtml(stateLabel(state))}</strong>`;
   const transcriptText = state === "success" && message
     ? message
@@ -116,12 +152,22 @@ function springFrames(fromWidth: number, fromHeight: number, toWidth: number, to
 }
 
 function render(state: PillState, message?: string, shouldAnnounce = true): void {
+  if (state === currentState && usesExpandedListening(state) && !capturePaused && message) {
+    const liveText = contentElement.querySelector<HTMLElement>(".expanded-live-text");
+    const pauseButton = contentElement.querySelector<HTMLElement>("[data-capture-pause]");
+    if (liveText && pauseButton?.getAttribute("aria-pressed") === String(capturePaused)) {
+      liveText.textContent = message;
+      currentMessage = message;
+      if (shouldAnnounce) announce(state, message);
+      return;
+    }
+  }
   const scale = customization.scale;
   const currentRect = pill.getBoundingClientRect();
   const previousState = currentState;
   const previousContentMode = currentContentMode;
   const stage = stateCustomization(customization, state);
-  const keepsLivingWave = previousContentMode === "waveform"
+  const keepsLivingWave = !usesExpandedListening(state) && previousContentMode === "waveform"
     && stage.contentMode === "waveform"
     && contentElement.querySelector(".brand-waveform") !== null
     && (previousState === "listening" || previousState === "handsfree" || previousState === "working")
@@ -143,11 +189,12 @@ function render(state: PillState, message?: string, shouldAnnounce = true): void
   });
   currentState = state;
   currentMessage = message;
-  cluster.className = `pill-cluster ${state}${morphsFromSpinner ? " spinner-to-success" : ""}`;
+  const expandedClass = usesExpandedListening(state) ? " expanded-listening" : "";
+  cluster.className = `pill-cluster ${state}${expandedClass}${morphsFromSpinner ? " spinner-to-success" : ""}`;
   applyPillCustomization(cluster, customization, state);
   pill.style.width = "";
   pill.style.height = "";
-  pill.className = `screen-pill ${state}${morphsFromSpinner ? " spinner-to-success" : ""}`;
+  pill.className = `screen-pill ${state}${expandedClass}${capturePaused ? " capture-paused" : ""}${morphsFromSpinner ? " spinner-to-success" : ""}`;
   applyPillCustomization(pill, customization, state);
   pill.dataset.contentMode = stage.contentMode;
   if (state === "idle" && stage.contentMode !== "levels" && stage.contentMode !== "waveform") {
@@ -168,7 +215,7 @@ function render(state: PillState, message?: string, shouldAnnounce = true): void
   cancelButton.disabled = state !== "working";
   cancelButton.setAttribute("aria-hidden", String(state !== "working"));
   pill.setAttribute("aria-label", announcementFor(state, message));
-  void invoke("set_pill_interactive", { interactive: state === "working" }).catch(() => {
+  void invoke("set_pill_interactive", { interactive: state === "working" || usesExpandedListening(state) }).catch(() => {
     // Browser preview has no native pill window.
   });
   const targetRect = pill.getBoundingClientRect();
@@ -208,6 +255,14 @@ void listen<PillCustomization>("pill-customization", (event) => {
   pill.style.transformOrigin = transformOriginFor(customization.position);
   render(currentState, currentMessage, false);
 });
+void listen<PillAppContext>("pill-app-context", (event) => {
+  currentApp = event.payload;
+  if (usesExpandedListening(currentState)) render(currentState, currentMessage, false);
+});
+void listen<{ paused: boolean }>("pill-capture-paused", (event) => {
+  capturePaused = event.payload.paused;
+  if (usesExpandedListening(currentState)) render(currentState, currentMessage, false);
+});
 reducedMotion.addEventListener("change", () => {
   geometryAnimation?.cancel();
   cancelPillContentTransition(pill);
@@ -215,6 +270,11 @@ reducedMotion.addEventListener("change", () => {
 });
 cancelButton.addEventListener("click", () => {
   void emit("cancel-processing-request");
+});
+pill.addEventListener("click", (event) => {
+  const target = event.target as HTMLElement;
+  if (target.closest("[data-capture-pause]")) void emit("capture-pause-request", { paused: !capturePaused });
+  if (target.closest("[data-capture-cancel]")) void emit("capture-cancel-request");
 });
 
 root.dataset.position = customization.position;

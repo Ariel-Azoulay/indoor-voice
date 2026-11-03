@@ -38,6 +38,7 @@ struct DictationControlState {
 struct ForegroundAppIdentity {
     name: Option<String>,
     bundle_identifier: Option<String>,
+    icon_data_url: Option<String>,
 }
 
 const TRAY_OPEN: &str = "tray-open";
@@ -72,8 +73,26 @@ pub fn accessibility_trusted_for_current_process() -> bool {
 fn focused_application() -> ForegroundAppIdentity {
     #[cfg(target_os = "macos")]
     {
-        use objc2_app_kit::NSWorkspace;
+        use base64::{engine::general_purpose::STANDARD, Engine as _};
+        use objc2::{runtime::AnyObject, AnyThread};
+        use objc2_app_kit::{NSBitmapImageFileType, NSBitmapImageRep, NSWorkspace};
+        use objc2_foundation::NSDictionary;
         let application = NSWorkspace::sharedWorkspace().frontmostApplication();
+        let icon_data_url = application
+            .as_ref()
+            .and_then(|application| application.icon())
+            .and_then(|icon| icon.TIFFRepresentation())
+            .and_then(|tiff| NSBitmapImageRep::initWithData(NSBitmapImageRep::alloc(), &tiff))
+            .and_then(|bitmap| {
+                let properties =
+                    NSDictionary::<objc2_app_kit::NSBitmapImageRepPropertyKey, AnyObject>::new();
+                // SAFETY: An empty property dictionary is valid for PNG encoding.
+                unsafe {
+                    bitmap
+                        .representationUsingType_properties(NSBitmapImageFileType::PNG, &properties)
+                }
+            })
+            .map(|png| format!("data:image/png;base64,{}", STANDARD.encode(png.to_vec())));
         return ForegroundAppIdentity {
             name: application
                 .as_ref()
@@ -83,12 +102,14 @@ fn focused_application() -> ForegroundAppIdentity {
                 .as_ref()
                 .and_then(|application| application.bundleIdentifier())
                 .map(|identifier| identifier.to_string()),
+            icon_data_url,
         };
     }
     #[cfg(not(target_os = "macos"))]
     ForegroundAppIdentity {
         name: None,
         bundle_identifier: None,
+        icon_data_url: None,
     }
 }
 
@@ -1343,6 +1364,8 @@ pub fn run() {
             transcription::run_transcription_self_test,
             transcription::start_audio_capture,
             transcription::start_audio_capture_with_device,
+            transcription::pause_audio_capture,
+            transcription::resume_audio_capture,
             transcription::snapshot_audio_capture,
             transcription::snapshot_audio_capture_window,
             transcription::stop_audio_capture,

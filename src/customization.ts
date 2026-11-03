@@ -10,6 +10,7 @@ export type PillPosition =
   | "bottom-right";
 
 export type PillContentMode = "waveform" | "levels" | "status" | "transcript";
+export type ListeningPillLayout = "compact" | "expanded";
 
 export type CustomizablePillState = "idle" | "listening" | "working" | "success" | "error";
 
@@ -40,11 +41,13 @@ export interface PillCustomization {
   backgroundOpacity: number;
   shadow: number;
   waveformEffect: WaveformEffect;
+  listeningLayout: ListeningPillLayout;
   states: Record<CustomizablePillState, PillStateCustomization>;
 }
 
-export const PILL_CUSTOMIZATION_KEY = "indoor-voice:pill-customization:v6";
+export const PILL_CUSTOMIZATION_KEY = "indoor-voice:pill-customization:v7";
 const LEGACY_PILL_CUSTOMIZATION_KEYS = [
+  "indoor-voice:pill-customization:v6",
   "indoor-voice:pill-customization:v5",
   "indoor-voice:pill-customization:v4",
   "indoor-voice:pill-customization:v3",
@@ -75,6 +78,7 @@ export const DEFAULT_PILL_CUSTOMIZATION: PillCustomization = {
   backgroundOpacity: 96,
   shadow: 38,
   waveformEffect: { ...DEFAULT_WAVEFORM_EFFECT },
+  listeningLayout: "compact",
   states: {
     idle: { contentMode: "levels", showIndicator: true, background: "#0c0d0c", text: "#f7f8f5", accent: "#55e77d", backgroundOpacity: 82, shadow: 22 },
     listening: { contentMode: "waveform", showIndicator: true, background: "#0c0d0c", text: "#f7f8f5", accent: "#55e77d", backgroundOpacity: 96, shadow: 38 },
@@ -204,6 +208,7 @@ export function normalizePillCustomization(value: unknown): PillCustomization {
     ),
     shadow: numberInRange(candidate.shadow, DEFAULT_PILL_CUSTOMIZATION.shadow, 0, 70),
     waveformEffect: normalizeWaveformEffect(candidate.waveformEffect),
+    listeningLayout: candidate.listeningLayout === "expanded" ? "expanded" : "compact",
     states,
   };
 }

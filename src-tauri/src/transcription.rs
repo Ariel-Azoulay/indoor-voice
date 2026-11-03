@@ -1350,6 +1350,36 @@ pub fn start_audio_capture_with_device(
     start_audio_capture_inner(app, recorder.inner(), selected_device.as_deref())
 }
 
+#[tauri::command]
+pub fn pause_audio_capture(recorder: State<'_, NativeAudioRecorder>) -> Result<(), String> {
+    let active = recorder
+        .0
+        .lock()
+        .map_err(|_| "The microphone recorder is unavailable.".to_string())?;
+    let capture = active
+        .as_ref()
+        .ok_or_else(|| "No microphone recording is active.".to_string())?;
+    capture
+        .stream
+        .pause()
+        .map_err(|error| format!("The microphone could not be paused: {error}"))
+}
+
+#[tauri::command]
+pub fn resume_audio_capture(recorder: State<'_, NativeAudioRecorder>) -> Result<(), String> {
+    let active = recorder
+        .0
+        .lock()
+        .map_err(|_| "The microphone recorder is unavailable.".to_string())?;
+    let capture = active
+        .as_ref()
+        .ok_or_else(|| "No microphone recording is active.".to_string())?;
+    capture
+        .stream
+        .play()
+        .map_err(|error| format!("The microphone could not be resumed: {error}"))
+}
+
 fn start_audio_capture_inner(
     app: AppHandle,
     recorder: &NativeAudioRecorder,
