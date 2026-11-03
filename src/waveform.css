@@ -1,0 +1,341 @@
+.brand-waveform {
+  --brand-wave-width: 144px;
+  --brand-wave-height: 30px;
+  --brand-wave-brightness: 1;
+  --brand-wave-saturation: .92;
+  --brand-wave-opacity: .94;
+  position: relative;
+  display: block;
+  width: var(--brand-wave-width);
+  height: var(--brand-wave-height);
+  flex: none;
+}
+
+.brand-waveform svg {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: block;
+  width: var(--brand-wave-width);
+  height: var(--brand-wave-height);
+  transform: translate(-50%, -50%);
+  overflow: hidden;
+  opacity: var(--brand-wave-opacity);
+  filter:
+    brightness(var(--brand-wave-brightness))
+    saturate(var(--brand-wave-saturation))
+    drop-shadow(0 0 1.5px rgb(92 164 255 / .28));
+  transition: filter 70ms linear, opacity 70ms linear;
+}
+
+.brand-waveform-lines {
+  transform-origin: center;
+}
+
+.brand-waveform path {
+  fill: none;
+  stroke-width: var(--wave-thickness, .78);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  opacity: var(--wave-opacity, .76);
+  will-change: d;
+}
+
+/* State changes overlap inside a stable layer so content emerges from the
+ * existing pill instead of being replaced on a single frame. */
+.pill-content,
+.pill-content-outgoing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  max-width: 100%;
+  transform-origin: center;
+  pointer-events: none;
+}
+
+.idle-glow {
+  width: 19px;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--pill-idle) 16%, transparent),
+    color-mix(in srgb, var(--pill-idle) 78%, transparent),
+    color-mix(in srgb, var(--pill-idle) 16%, transparent));
+  box-shadow: 0 0 7px color-mix(in srgb, var(--pill-idle) 28%, transparent);
+}
+
+.voice-pill.idle:has(.idle-glow)::after {
+  display: none;
+}
+
+/* Geometry is driven by the interruptible spring in TypeScript. Competing CSS
+ * width/height transitions would make target measurements report an in-between
+ * size and produce a visible snap at the end. */
+.voice-pill {
+  transition: opacity 160ms ease;
+}
+
+.pill-content {
+  position: relative;
+  z-index: 2;
+}
+
+.pill-content-outgoing {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.voice-pill[data-content-mode="waveform"],
+.screen-pill[data-content-mode="waveform"] {
+  overflow: hidden;
+}
+
+.voice-pill.listening[data-content-mode="waveform"],
+.voice-pill.handsfree[data-content-mode="waveform"] {
+  min-width: 0;
+}
+
+.voice-pill.idle[data-content-mode="waveform"] {
+  width: 45px;
+  min-width: 45px;
+  height: 10px;
+  padding: 0;
+}
+
+.screen-pill[data-content-mode="waveform"] .brand-waveform {
+  --brand-wave-width: 144px;
+  --brand-wave-height: 30px;
+}
+
+.screen-pill.listening[data-content-mode="waveform"],
+.screen-pill.handsfree[data-content-mode="waveform"] {
+  min-width: 0;
+}
+
+.content-waveform .brand-waveform {
+  --brand-wave-width: 58px;
+  --brand-wave-height: 12px;
+  width: var(--brand-wave-width);
+  height: 22px;
+  margin: 0 auto;
+  --brand-wave-brightness: 1;
+  --brand-wave-saturation: 1.1;
+  --brand-wave-opacity: 1;
+}
+
+.pill-content-picker {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.content-waveform {
+  display: grid !important;
+  place-items: center;
+  overflow: visible !important;
+}
+
+.brand-app-icon {
+  display: block !important;
+  width: 36px !important;
+  height: 22px !important;
+  flex: none;
+  overflow: visible;
+}
+
+/* The wave's box follows its physical fold into the processing spinner. */
+.voice-pill.working[data-content-mode="waveform"] .brand-waveform,
+.screen-pill.working[data-content-mode="waveform"] .brand-waveform {
+  animation: brand-wave-collapse 900ms cubic-bezier(.2, .8, .2, 1) both;
+}
+
+.voice-pill.working[data-content-mode="waveform"] .brand-waveform svg,
+.screen-pill.working[data-content-mode="waveform"] .brand-waveform svg {
+  --brand-wave-brightness: 1.16;
+  --brand-wave-saturation: 1.16;
+  --brand-wave-opacity: 1;
+  filter:
+    brightness(var(--brand-wave-brightness))
+    saturate(var(--brand-wave-saturation))
+    drop-shadow(0 0 2px color-mix(in srgb, var(--wave-color-middle, #ff2ea6) 48%, transparent));
+}
+
+@keyframes brand-wave-collapse {
+  0%, 52% { width: var(--brand-wave-width); }
+  100% { width: 26px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voice-pill.working[data-content-mode="waveform"] .brand-waveform,
+  .screen-pill.working[data-content-mode="waveform"] .brand-waveform {
+    width: 26px;
+    animation: none;
+  }
+
+  .brand-waveform-lines {
+    transform: none;
+  }
+
+  .brand-waveform path {
+    will-change: auto;
+  }
+
+  .brand-waveform svg {
+    opacity: .92;
+    filter: saturate(1.05);
+    transition: none;
+  }
+}
+
+/* Shared final geometry for the pill and its detached processing action. */
+.pill-cluster {
+  --pill-scale: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  transform: scale(var(--pill-scale));
+  transform-origin: center;
+  transition: gap 380ms cubic-bezier(.2, .8, .2, 1);
+}
+.pill-cluster.working { gap: 7px; }
+.pill-cluster .voice-pill,
+.pill-cluster .screen-pill { position: relative; inset: auto; transform: none; }
+.home-voice-stage .home-pill-cluster {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  z-index: 3;
+  transform: translate(-50%, -50%) scale(var(--pill-scale));
+}
+.appearance-pill-cluster { position: relative; z-index: 2; max-width: 86%; }
+.appearance-pill-cluster .appearance-pill { left: auto; bottom: auto; z-index: auto; max-width: none; transform: none; }
+
+/*
+ * The processing action peels away from the pill's trailing edge. Its origin
+ * stays attached to the pill while it is small, then the shadow separates as
+ * it reaches its floating resting position. Leaving Working mirrors the path.
+ */
+.pill-cancel-detached {
+  transform: translateX(-18px) scale(.52, .86);
+  transform-origin: left center;
+  opacity: 0;
+  filter: blur(.45px);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--pill-border) 8%, transparent),
+    -5px 0 10px color-mix(in srgb, #000 8%, transparent),
+    0 5px 12px color-mix(in srgb, #000 0%, transparent);
+  transition:
+    width 380ms cubic-bezier(.2, .8, .2, 1),
+    opacity 180ms 35ms ease-out,
+    transform 380ms cubic-bezier(.2, .8, .2, 1),
+    filter 190ms ease-out,
+    box-shadow 320ms ease-out,
+    color 120ms ease,
+    background 120ms ease;
+}
+
+.pill-cluster.working .pill-cancel-detached {
+  width: 28px;
+  opacity: 1;
+  transform: translateX(0) scale(1);
+  filter: blur(0);
+  pointer-events: auto;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--pill-border) 8%, transparent),
+    0 7px 16px color-mix(in srgb, #000 var(--pill-shadow-opacity), transparent);
+}
+
+.pill-cluster.working .pill-cancel-detached:active {
+  transform: translateX(0) scale(.88);
+}
+
+/* Shared optical geometry: every content mode occupies the same 34px shell. */
+.voice-pill:not(.idle),
+.screen-pill:not(.idle) {
+  height: 34px;
+  padding-inline: 8px;
+}
+
+.voice-pill:not(.idle)[data-content-mode],
+.screen-pill:not(.idle)[data-content-mode] {
+  min-width: 0;
+}
+
+.voice-pill .pill-label,
+.screen-pill strong {
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 620;
+  letter-spacing: -.006em;
+}
+
+.bars,
+.overlay-bars {
+  height: 24px;
+  gap: 2.5px;
+}
+
+.bars i,
+.overlay-bars i {
+  width: 2.5px;
+  max-height: 22px;
+}
+
+.voice-pill.working[data-content-mode="waveform"],
+.screen-pill.working[data-content-mode="waveform"] {
+  min-width: 42px;
+}
+
+.voice-pill.success[data-content-mode="waveform"],
+.screen-pill.success[data-content-mode="waveform"] {
+  min-width: 34px;
+  padding-inline: 7px;
+}
+
+.check,
+.success-mark {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.success .check,
+.success .success-mark {
+  animation: success-orb-arrive 300ms cubic-bezier(.2, .8, .2, 1) both;
+}
+
+.spinner-to-success .pill-label,
+.spinner-to-success .transcript-label {
+  animation: spinner-success-label 260ms 110ms cubic-bezier(.2, .8, .2, 1) both;
+}
+
+@keyframes success-orb-arrive {
+  from { opacity: .5; transform: scale(.82) rotate(-42deg); }
+  to { opacity: 1; transform: scale(1) rotate(0); }
+}
+
+@keyframes spinner-success-label {
+  from { opacity: 0; transform: translateX(-4px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pill-cluster { transition: none; }
+
+  .pill-cancel-detached,
+  .pill-cluster.working .pill-cancel-detached {
+    filter: none;
+    transition: opacity 160ms ease;
+  }
+
+  .success .check,
+  .success .success-mark,
+  .spinner-to-success .pill-label,
+  .spinner-to-success .transcript-label {
+    animation: none;
+  }
+}

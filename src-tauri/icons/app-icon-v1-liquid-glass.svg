@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="120" y1="82" x2="902" y2="944" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#000000"/>
+      <stop offset="1" stop-color="#000000"/>
+    </linearGradient>
+    <linearGradient id="pill" x1="128" y1="338" x2="886" y2="690" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.22"/>
+      <stop offset="0.48" stop-color="#BDEFE3" stop-opacity="0.09"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.06"/>
+    </linearGradient>
+    <linearGradient id="pill-edge" x1="196" y1="328" x2="816" y2="706" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.62"/>
+      <stop offset="0.35" stop-color="#FFFFFF" stop-opacity="0.22"/>
+      <stop offset="0.72" stop-color="#BDEFE3" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.32"/>
+    </linearGradient>
+    <clipPath id="pill-clip">
+      <rect x="90" y="330" width="844" height="364" rx="182"/>
+    </clipPath>
+    <filter id="pill-shadow" x="-10%" y="-30%" width="120%" height="170%">
+      <feDropShadow dx="0" dy="22" stdDeviation="24" flood-color="#000000" flood-opacity="0.62"/>
+      <feDropShadow dx="0" dy="-2" stdDeviation="7" flood-color="#FFFFFF" flood-opacity="0.08"/>
+    </filter>
+    <filter id="soft-glow" x="-30%" y="-80%" width="160%" height="260%">
+      <feGaussianBlur stdDeviation="22"/>
+    </filter>
+    <filter id="wave-shadow" x="-15%" y="-30%" width="130%" height="160%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#000000" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+
+  <rect x="36" y="36" width="952" height="952" rx="246" fill="url(#bg)"/>
+  <rect x="37.5" y="37.5" width="949" height="949" rx="244.5" fill="none" stroke="#FFFFFF" stroke-opacity="0.1" stroke-width="3"/>
+
+  <rect x="90" y="330" width="844" height="364" rx="182" fill="url(#pill)" stroke="url(#pill-edge)" stroke-width="4" filter="url(#pill-shadow)"/>
+  <g clip-path="url(#pill-clip)">
+    <ellipse cx="334" cy="358" rx="230" ry="52" fill="#FFFFFF" fill-opacity="0.1" filter="url(#soft-glow)"/>
+    <ellipse cx="760" cy="676" rx="190" ry="42" fill="#7FFFD4" fill-opacity="0.035" filter="url(#soft-glow)"/>
+    <svg x="112" y="346" width="800" height="332" viewBox="0 150 1774 587" preserveAspectRatio="xMidYMid meet" filter="url(#wave-shadow)">
+      <image x="0" y="0" width="1774" height="887" xlink:href="../../color-sine-wave-logo.png"/>
+    </svg>
+  </g>
+</svg>

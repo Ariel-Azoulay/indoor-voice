@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main",
+  "description": "Minimum permissions for the trusted Indoor Voice main window.",
+  "windows": ["main", "pill"],
+  "platforms": ["macOS", "windows", "linux"],
+  "permissions": ["core:default"]
+}

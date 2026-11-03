@@ -1,0 +1,25 @@
+{
+  "name": "indoor-voice",
+  "private": true,
+  "version": "0.2.8",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "build:mac": "tauri build --bundles app && npm run sign:mac",
+    "sign:mac": "sh scripts/sign-local-macos.sh",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "check": "tsc --noEmit && cargo check --manifest-path src-tauri/Cargo.toml",
+    "test:text-utils": "vite build --ssr tests/text-utilities.test.ts --outDir /tmp/indoor-voice-text-tests --emptyOutDir && node /tmp/indoor-voice-text-tests/text-utilities.test.js"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.12.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.0",
+    "typescript": "^5.9.3",
+    "vite": "6.4.5"
+  }
+}

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024">
+  <!-- Canonical logo-only app icon. Approved V1/V2 icon masters are preserved separately. -->
+  <!-- The transparent mark deliberately fills the optical icon area. Its vertical
+       scale keeps the logo legible beside full-tile macOS Dock icons. -->
+  <svg x="24" y="96" width="976" height="832" viewBox="0 150 1774 587" preserveAspectRatio="none">
+    <image x="0" y="0" width="1774" height="887" xlink:href="../../color-sine-wave-logo.png"/>
+  </svg>
+</svg>

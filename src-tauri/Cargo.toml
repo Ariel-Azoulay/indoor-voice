@@ -1,0 +1,36 @@
+[package]
+name = "indoor-voice"
+version = "0.2.8"
+description = "Private, local-first desktop dictation"
+authors = ["Indoor Voice contributors"]
+edition = "2021"
+license = "MIT"
+
+[lib]
+name = "indoor_voice_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-autostart = "2"
+tauri-plugin-updater = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+keyring = "4"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+url = "2"
+zeroize = "1"
+base64 = "0.22"
+enigo = "0.6"
+cpal = "0.18.2"
+hound = "3.5"
+sha2 = "0.10"
+tokio = { version = "1", features = ["fs", "io-util"] }
+whisper-rs = "0.16"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-app-kit = { version = "0.3", default-features = false, features = ["NSRunningApplication", "NSWorkspace"] }

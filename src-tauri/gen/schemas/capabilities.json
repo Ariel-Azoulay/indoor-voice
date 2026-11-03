@@ -1,0 +1,1 @@
+{"main":{"identifier":"main","description":"Minimum permissions for the trusted Indoor Voice main window.","local":true,"windows":["main","pill"],"permissions":["core:default"],"platforms":["macOS","windows","linux"]}}

@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024">
+  <!-- V2: Dock-optimized master. Keep all artwork inside the macOS safe area. -->
+  <defs>
+    <linearGradient id="bg" x1="120" y1="82" x2="902" y2="944" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#090B0B"/>
+      <stop offset="0.52" stop-color="#030404"/>
+      <stop offset="1" stop-color="#000000"/>
+    </linearGradient>
+    <linearGradient id="pill" x1="142" y1="350" x2="882" y2="678" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.19"/>
+      <stop offset="0.46" stop-color="#DDFEF6" stop-opacity="0.075"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.045"/>
+    </linearGradient>
+    <linearGradient id="pill-edge" x1="206" y1="340" x2="820" y2="686" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.7"/>
+      <stop offset="0.34" stop-color="#FFFFFF" stop-opacity="0.25"/>
+      <stop offset="0.72" stop-color="#BDEFE3" stop-opacity="0.1"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.28"/>
+    </linearGradient>
+    <radialGradient id="glass-sheen" cx="0" cy="0" r="1" gradientTransform="translate(302 370) rotate(15) scale(390 176)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.13"/>
+      <stop offset="0.62" stop-color="#DDFEF6" stop-opacity="0.025"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="pill-clip">
+      <rect x="110" y="348" width="804" height="328" rx="164"/>
+    </clipPath>
+    <filter id="pill-shadow" x="-10%" y="-30%" width="120%" height="170%">
+      <feDropShadow dx="0" dy="20" stdDeviation="22" flood-color="#000000" flood-opacity="0.68"/>
+      <feDropShadow dx="0" dy="-2" stdDeviation="6" flood-color="#FFFFFF" flood-opacity="0.07"/>
+    </filter>
+    <filter id="soft-glow" x="-30%" y="-80%" width="160%" height="260%">
+      <feGaussianBlur stdDeviation="22"/>
+    </filter>
+    <filter id="wave-shadow" x="-15%" y="-30%" width="130%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="11" flood-color="#000000" flood-opacity="0.46"/>
+    </filter>
+  </defs>
+
+  <rect x="74" y="74" width="876" height="876" rx="210" fill="url(#bg)"/>
+
+  <rect x="110" y="348" width="804" height="328" rx="164" fill="url(#pill)" stroke="url(#pill-edge)" stroke-width="3.5" filter="url(#pill-shadow)"/>
+  <g clip-path="url(#pill-clip)">
+    <rect x="110" y="348" width="804" height="328" rx="164" fill="url(#glass-sheen)"/>
+    <ellipse cx="742" cy="656" rx="170" ry="34" fill="#7FFFD4" fill-opacity="0.028" filter="url(#soft-glow)"/>
+    <svg x="126" y="354" width="772" height="316" viewBox="0 150 1774 587" preserveAspectRatio="xMidYMid meet" filter="url(#wave-shadow)">
+      <image x="0" y="0" width="1774" height="887" xlink:href="../../color-sine-wave-logo.png"/>
+    </svg>
+  </g>
+</svg>
